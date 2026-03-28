@@ -20,10 +20,14 @@ extern crate alloc;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 //Custom
-
 use serde_json_core::{ self, heapless };
 use shared::structs::BiomePacket;
 use shared::enums::Biome;
+//
+
+//Deep sleep
+use esp_hal::rtc_cntl::{ Rtc };
+use esp_hal::rtc_cntl::sleep::{ TimerWakeupSource };
 //
 
 #[allow(
@@ -39,7 +43,7 @@ fn main() -> ! {
     let sw_interrupt = esp_hal::interrupt::software::SoftwareInterruptControl::new(
         peripherals.SW_INTERRUPT
     );
-    esp_rtos::start(timg0.timer0, sw_interrupt.software_interrupt0);
+    esp_rtos::start(timg0.timer0);
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
     let (mut _wifi_controller, _interfaces) = esp_radio::wifi
         ::new(&radio_init, peripherals.WIFI, Default::default())
@@ -51,17 +55,19 @@ fn main() -> ! {
     _ = _wifi_controller.start();
     _ = esp_now.set_channel(1);
 
-    println!("Broadcasting...");
-
-    let biome = BiomePacket::new(Biome::Desert);
+    let biome = BiomePacket::new(Biome::Forest);
     let json: heapless::String<30> = serde_json_core::to_string(&biome).unwrap();
     let packet = json.as_bytes();
 
-    loop {
-        let _info = esp_now.send(&BROADCAST_ADDRESS, packet).unwrap();
-
-        blocking_delay(5000);
-    }
+    //Deep sleep config
+    let waker = TimerWakeupSource::new(core::time::Duration::from_secs(5));
+    let mut rtc = Rtc::new(peripherals.LPWR);
+    //Sending packet then entering deep sleep
+    println!("Sending Packet");
+    let _info = esp_now.send(&BROADCAST_ADDRESS, packet).unwrap();
+    blocking_delay(200);
+    rtc.sleep_deep(&[&waker]); //Deep sleeps then reboots
+    unreachable!();
 }
 
 fn blocking_delay(delay: u64) {

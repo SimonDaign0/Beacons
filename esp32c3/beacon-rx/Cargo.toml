@@ -1,11 +1,11 @@
 [package]
 edition = "2024"
-name = "beacon-tx"
+name = "beacon-rx"
 rust-version = "1.88"
 version = "0.1.0"
 
 [[bin]]
-name = "beacon-tx"
+name = "beacon-rx"
 path = "./src/bin/main.rs"
 
 [dependencies]
@@ -16,22 +16,10 @@ esp-rtos = { version = "0.2.0", features = [
   "esp-alloc",
   "esp-radio",
   "esp32c3",
-  "embassy",
 ] }
 
 defmt = "1.0.1"
 esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32c3"] }
-
-embassy-net = { version = "0.7.1", features = [
-  "dhcpv4",
-  "medium-ethernet",
-  "tcp",
-  "udp",
-] }
-
-embassy-executor = { version = "0.9.1", features = [] }
-embassy-time = "0.5.0"
-embassy-futures = "0.1"
 
 critical-section = "1.2.0"
 embedded-io = { version = "0.7.1", features = ["defmt"] }
@@ -64,10 +52,10 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
+
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde-json-core = "0.6.0"
-
-shared = { path = "../shared" }
+shared = { path = "../../shared" }
 
 
 [profile.dev]
