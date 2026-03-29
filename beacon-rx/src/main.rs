@@ -8,14 +8,17 @@
 #![deny(clippy::large_stack_frames)]
 
 //use core::sync::atomic::{ AtomicU8 }; if multi core
+mod fsm;
+mod enums;
+mod structs;
 
 use defmt::{ println };
 use esp_hal::clock::CpuClock;
 use esp_hal::main;
-use esp_hal::time::{ Instant, Duration };
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::esp_now::{ EspNow };
 use esp_radio::wifi::WifiMode;
+use shared::enums::Biome;
 use ::{ esp_backtrace as _, esp_println as _ };
 
 extern crate alloc;
@@ -26,6 +29,8 @@ esp_bootloader_esp_idf::esp_app_desc!();
 use serde_json_core;
 
 use shared::structs::BiomePacket;
+use shared::utils;
+use fsm::StateMachine;
 //
 
 #[allow(
@@ -52,29 +57,38 @@ fn main() -> ! {
     _ = _wifi_controller.set_mode(WifiMode::Sta);
     _ = _wifi_controller.start();
     _ = esp_now.set_channel(1);
+    // sm init
+    let sm = StateMachine::init();
+    //
 
     loop {
-        poll_packets(&esp_now);
-        blocking_delay(5000);
+        let current_biome = poll_packets(&esp_now);
+        gen_pokemon(current_biome, &sm);
+
+        utils::blocking_delay(5000);
     }
 }
 
-fn blocking_delay(delay: u64) {
-    let delay_start = Instant::now();
-    while delay_start.elapsed() < Duration::from_millis(delay) {}
-}
-
-fn poll_packets(esp_now: &EspNow<'_>) {
-    while let Some(data) = esp_now.receive() {
-        let bytes = data.data();
+fn poll_packets(esp_now: &EspNow<'_>) -> Option<Biome> {
+    if let Some(packet) = esp_now.receive() {
+        while let Some(_) = esp_now.receive() {} //discard the rest of the queue
+        let bytes = packet.data();
         match serde_json_core::from_slice::<BiomePacket>(bytes) {
-            //packet, _remaining
-            Ok((biome_packet, _)) => {
-                println!("{}", biome_packet);
+            Ok((biome_packet, _remaining)) => {
+                println!("recieved packet: {}", biome_packet);
+                return Some(biome_packet.biome);
             }
-            Err(e) => {
-                panic!("Failed to deserialize: {:?}", e);
+            Err(_) => {
+                println!("Failed to deserialize packet");
             }
         }
+    }
+    None
+}
+
+fn gen_pokemon(biome_packet: Option<Biome>, sm: &StateMachine) {
+    if let Some(biome) = biome_packet {
+        let new_pokemon = sm.generate_pokemon(biome);
+        println!("generated pokemon: {}", new_pokemon.kind);
     }
 }

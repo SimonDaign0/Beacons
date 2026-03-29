@@ -3,10 +3,16 @@ use core::{ prelude::rust_2024::derive };
 use defmt::{ Format, Formatter, write };
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
+#[repr(u8)]
 pub enum Biome {
     Wilderness,
     Forest,
     Desert,
+    Plains,
+    Ocean,
+    Mountain,
+    Snow,
+    Swamp,
 }
 
 impl Format for Biome {
@@ -15,6 +21,11 @@ impl Format for Biome {
             Biome::Wilderness => write!(fmt, "Wilderness"),
             Biome::Forest => write!(fmt, "Forest"),
             Biome::Desert => write!(fmt, "Desert"),
+            Biome::Plains => write!(fmt, "Plains"),
+            Biome::Ocean => write!(fmt, "Ocean"),
+            Biome::Mountain => write!(fmt, "Mountain"),
+            Biome::Snow => write!(fmt, "Snow"),
+            Biome::Swamp => write!(fmt, "Swamp"),
         }
     }
 }
