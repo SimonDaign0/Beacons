@@ -9,31 +9,31 @@ name = "beacon-tx"
 path = "./src/bin/main.rs"
 
 [dependencies]
-esp-hal = { version = "~1.0", features = ["defmt", "esp32c3", "unstable"] }
+esp-hal = { version = "~1.0", features = ["defmt", "esp32s3", "unstable"] }
 
 esp-rtos = { version = "0.2.0", features = [
   "defmt",
   "esp-alloc",
   "esp-radio",
-  "esp32c3",
+  "esp32s3",
 ] }
 
 defmt = "1.0.1"
-esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32c3"] }
+esp-bootloader-esp-idf = { version = "0.4.0", features = ["defmt", "esp32s3"] }
 
 critical-section = "1.2.0"
 embedded-io = { version = "0.7.1", features = ["defmt"] }
 esp-alloc = { version = "0.9.0", features = ["defmt"] }
 esp-backtrace = { version = "0.18.1", features = [
   "defmt",
-  "esp32c3",
+  "esp32s3",
   "panic-handler",
 ] }
-esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32c3"] }
+esp-println = { version = "0.16.1", features = ["defmt-espflash", "esp32s3"] }
 esp-radio = { version = "0.17.0", features = [
   "defmt",
   "esp-alloc",
-  "esp32c3",
+  "esp32s3",
   "smoltcp",
   "unstable",
   "wifi",
@@ -52,10 +52,11 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-tcp",
   "socket-udp",
 ] }
-serde = { version = "1.0", default-features = false, features = ["derive"] }
-serde-json-core = "0.6.0"
 
-shared = { path = "../../shared" }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+postcard = { version = "1.0", default-features = false }
+
+shared = { path = "../shared" }
 
 
 [profile.dev]

@@ -6,43 +6,37 @@
     holding buffers for the duration of a data transfer."
 )]
 #![deny(clippy::large_stack_frames)]
-
+#[allow(
+    clippy::large_stack_frames,
+    reason = "it's not unusual to allocate larger buffers etc. in main"
+)]
 use defmt::{ println };
 use esp_hal::clock::CpuClock;
 use esp_hal::main;
-use esp_hal::time::{ Instant, Duration };
 use esp_hal::timer::timg::TimerGroup;
 use esp_radio::esp_now::{ BROADCAST_ADDRESS };
 use esp_radio::wifi::WifiMode;
 use ::{ esp_backtrace as _, esp_println as _ };
-
 extern crate alloc;
 esp_bootloader_esp_idf::esp_app_desc!();
-
-//Custom
-use serde_json_core::{ self, heapless };
-use shared::structs::BiomePacket;
-use shared::enums::Biome;
-//
 
 //Deep sleep
 use esp_hal::rtc_cntl::{ Rtc };
 use esp_hal::rtc_cntl::sleep::{ TimerWakeupSource };
 //
 
-#[allow(
-    clippy::large_stack_frames,
-    reason = "it's not unusual to allocate larger buffers etc. in main"
-)]
+//Custom
+use shared::structs::BiomePacket;
+use shared::enums::Biome;
+use shared::utils;
+//
+
 #[main]
 fn main() -> ! {
-    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::_80MHz);
     let peripherals = esp_hal::init(config);
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 66320);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
-    let sw_interrupt = esp_hal::interrupt::software::SoftwareInterruptControl::new(
-        peripherals.SW_INTERRUPT
-    );
     esp_rtos::start(timg0.timer0);
     let radio_init = esp_radio::init().expect("Failed to initialize Wi-Fi/BLE controller");
     let (mut _wifi_controller, _interfaces) = esp_radio::wifi
@@ -55,22 +49,17 @@ fn main() -> ! {
     _ = _wifi_controller.start();
     _ = esp_now.set_channel(1);
 
-    let biome = BiomePacket::new(Biome::Forest);
-    let json: heapless::String<30> = serde_json_core::to_string(&biome).unwrap();
-    let packet = json.as_bytes();
+    let biome = BiomePacket::new(Biome::Desert);
 
-    //Deep sleep config
+    let mut buf = [0u8; 4];
+    let biome_packet = postcard::to_slice(&biome, &mut buf).unwrap(); //convert to bytes
+
     let waker = TimerWakeupSource::new(core::time::Duration::from_secs(5));
     let mut rtc = Rtc::new(peripherals.LPWR);
     //Sending packet then entering deep sleep
     println!("Sending Packet");
-    let _info = esp_now.send(&BROADCAST_ADDRESS, packet).unwrap();
-    blocking_delay(200);
+    _ = esp_now.send(&BROADCAST_ADDRESS, biome_packet).unwrap();
+    utils::blocking_delay(200);
     rtc.sleep_deep(&[&waker]); //Deep sleeps then reboots
     unreachable!();
-}
-
-fn blocking_delay(delay: u64) {
-    let delay_start = Instant::now();
-    while delay_start.elapsed() < Duration::from_millis(delay) {}
 }
