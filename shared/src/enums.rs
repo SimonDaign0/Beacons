@@ -1,6 +1,17 @@
 use serde::{ Serialize, Deserialize };
-use core::{ prelude::rust_2024::derive };
 use defmt::{ Format, Formatter, write };
+
+#[derive(Debug)]
+pub enum AuthError {
+    InvalidToken,
+}
+impl Format for AuthError {
+    fn format(&self, fmt: Formatter) {
+        match self {
+            AuthError::InvalidToken => write!(fmt, "Invalid packet token"),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Copy)]
 #[repr(u8)]

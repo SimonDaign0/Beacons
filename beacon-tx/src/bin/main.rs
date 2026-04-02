@@ -26,8 +26,6 @@ use esp_hal::rtc_cntl::sleep::{ TimerWakeupSource };
 //
 
 //Custom
-
-use serde_json_core::{ self, heapless };
 use shared::structs::BiomePacket;
 use shared::enums::Biome;
 use shared::utils;
@@ -35,7 +33,7 @@ use shared::utils;
 
 #[main]
 fn main() -> ! {
-    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
+    let config = esp_hal::Config::default().with_cpu_clock(CpuClock::_80MHz);
     let peripherals = esp_hal::init(config);
     esp_alloc::heap_allocator!(#[esp_hal::ram(reclaimed)] size: 66320);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
@@ -54,17 +52,16 @@ fn main() -> ! {
     _ = _wifi_controller.start();
     _ = esp_now.set_channel(1);
 
-    println!("Broadcasting...");
-
     let biome = BiomePacket::new(Biome::Desert);
-    let json: heapless::String<30> = serde_json_core::to_string(&biome).unwrap();
-    let packet = json.as_bytes();
+
+    let mut buf = [0u8; 4];
+    let biome_packet = postcard::to_slice(&biome, &mut buf).unwrap(); //convert to bytes
 
     let waker = TimerWakeupSource::new(core::time::Duration::from_secs(5));
     let mut rtc = Rtc::new(peripherals.LPWR);
     //Sending packet then entering deep sleep
     println!("Sending Packet");
-    let _info = esp_now.send(&BROADCAST_ADDRESS, packet).unwrap();
+    let _info = esp_now.send(&BROADCAST_ADDRESS, biome_packet).unwrap();
     utils::blocking_delay(200);
     rtc.sleep_deep(&[&waker]); //Deep sleeps then reboots
     unreachable!();

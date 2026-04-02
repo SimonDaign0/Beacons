@@ -26,8 +26,6 @@ extern crate alloc;
 esp_bootloader_esp_idf::esp_app_desc!();
 
 //custom
-use serde_json_core;
-
 use shared::structs::BiomePacket;
 use shared::utils;
 use fsm::StateMachine;
@@ -62,28 +60,33 @@ fn main() -> ! {
     //
 
     loop {
-        let current_biome = poll_packets(&esp_now);
-        gen_pokemon(current_biome, &sm);
+        let biome_recieved = poll_packets(&esp_now);
+        gen_pokemon(biome_recieved, &sm);
 
         utils::blocking_delay(5000);
     }
 }
 
 fn poll_packets(esp_now: &EspNow<'_>) -> Option<Biome> {
-    if let Some(packet) = esp_now.receive() {
-        while let Some(_) = esp_now.receive() {} //discard the rest of the queue
-        let bytes = packet.data();
-        match serde_json_core::from_slice::<BiomePacket>(bytes) {
-            Ok((biome_packet, _remaining)) => {
-                println!("recieved packet: {}", biome_packet);
-                return Some(biome_packet.biome);
+    let packet = esp_now.receive()?;
+    let bytes = packet.data();
+    match postcard::from_bytes::<BiomePacket>(bytes) {
+        Ok(biome_packet) =>
+            match biome_packet.authenticate() {
+                Ok(biome) => {
+                    while let Some(_) = esp_now.receive() {} //discard remaining queue
+                    return Some(biome);
+                }
+                Err(err) => {
+                    println!("Error: {}", err);
+                    return None;
+                }
             }
-            Err(_) => {
-                println!("Failed to deserialize packet");
-            }
+        Err(_) => {
+            println!("Failed to deserialize packet");
+            None
         }
     }
-    None
 }
 
 fn gen_pokemon(biome_packet: Option<Biome>, sm: &StateMachine) {
